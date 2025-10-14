@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "johnny-decimal-plugin",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "This is a plugin for automatic file renaming to match Johnny Decimal System.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
