@@ -78,8 +78,8 @@ export default class JohnnyDecimalPlugin extends Plugin {
 						return;
 					}
 
-					if (!hasJDprefix || (fileJDprefix !== parentJDprefix)) { // Add or update prefix
-						let newPrefixedName = newPrefixNumber.toString().padStart(2, "0") + " " + filePlainName;
+					if (!hasJDprefix || (fileJDprefix !== parentJDprefix[0]+String(newPrefixNumber))) { // Add or update prefix
+						let newPrefixedName = newPrefixNumber.toString().padStart(2, parentJDprefix[0]) + " " + filePlainName;
 						this.app.vault.rename(file, file.parent.path + "/" + newPrefixedName);
 						return;
 					}
@@ -87,18 +87,33 @@ export default class JohnnyDecimalPlugin extends Plugin {
 				}
 				
 				if (parentJDprefixLevel == 1) { // Parent has a regular JD prefix
-					let newPrefixNumber = Number(usedPrefixNumbers[usedPrefixNumbers.length - 1]) + 1 || 11;
-					if (this.settings.flattenedStructure) {
-						// TODO: Add option to put the folders in first 10 prefixes (XX.01-10) if setting is enabled
-						if (this.settings.divergeFromOriginalJD && this.settings.flattenedStructure 
-							&& this.settings.foldersInFirstTen) {
-							
+					if (this.settings.divergeFromOriginalJD && this.settings.flattenedStructure) {
+						if (this.settings.foldersInFirstTen) {
+							let first10prefixes = [...Array(10).keys()].map(num => (num+1).toString().padStart(2, "0"));
+							console.log(first10prefixes);
+							if (first10prefixes.every(pref => usedPrefixNumbers.contains(pref))) { // Top level folder full - do not add prefix
+								new Notice("All first 10 prefixes are occupied!");
+								removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+								return;
+							}
+
+							let newPrefixNumber = first10prefixes.filter(val => !usedPrefixNumbers.contains(val))[0];
+							let prefixIDpart = newPrefixNumber.toString().padStart(2, parentJDprefix[0])
+							if (!hasJDprefix || (fileJDprefix !== parentJDprefix + "." + prefixIDpart)) { // Add or update prefix
+								let newPrefixedName = parentJDprefix + "." + prefixIDpart + " " + filePlainName;
+								this.app.vault.rename(file, file.parent.path + "/" + newPrefixedName);
+								return;	
+							}
 						}
+
+						// If flattened but without folders in first 10, then remove prefix
 						removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
 						return;
-					} // Do nothing if flattened structure is enabled
-
+					}
+					
+					// Set prefix if structure not flattened
 					if (!hasJDprefix || (fileJDprefix !== parentJDprefix)) { // Add or update prefix
+						let newPrefixNumber = Number(usedPrefixNumbers[usedPrefixNumbers.length - 1]) + 1 || 11;
 						let newPrefixedName = parentJDprefix + "." + newPrefixNumber + " " + filePlainName;
 						this.app.vault.rename(file, file.parent.path + "/" + newPrefixedName);
 						return;
