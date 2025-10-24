@@ -1,7 +1,5 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile } from 'obsidian';
-import type { Vault } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile, TFolder } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
 
 interface JohnnyDecimalPluginSettings {
 	divergeFromOriginalJD: boolean;
@@ -19,20 +17,61 @@ export default class JohnnyDecimalPlugin extends Plugin {
 	settings: JohnnyDecimalPluginSettings;
 
 	async onload() {
+		//TODO: Idea - add command that adds new shelf level/category level folder to JDex (needs to store jdex location in settings)
 		console.log('Loading Johnny Decimal Plugin');
 		await this.loadSettings();
 
-		function removePrefixIfPresent(vault:Vault, file:TAbstractFile, hasJDprefix: boolean, filePlainName:string): void {
+		function removePrefixIfPresent(file:TAbstractFile, hasJDprefix: boolean, filePlainName:string): void {
+			const vault = file.vault;
 			if (hasJDprefix && file.parent) {
 				vault.rename(file, file.parent.path + "/" + filePlainName);
 			}
+		}
+
+		// TODO: Execute this function when folder moves to different parent or only changes its name
+		function updateChildrenPrefix(thisFolder:TFolder, newFolderPrefix:string): Number {
+			let filesChanged = 0;
+
+			if (!thisFolder.children.length) { // Does not contain anything
+				return 0;
+			}
+
+			let parentHasTopLevelJDprefix = newFolderPrefix.match(/^\d{2}\-\d{2} /)
+
+			thisFolder.children.forEach(child => {
+				let hasJDprefix = (child.name.match(/^\d{2}\.\d{2} /) || child.name.match(/^\d{2} /)) ? true : false;
+				let parentJDprefixLevel = parentHasTopLevelJDprefix ? 0 : (newFolderPrefix.match(/\./g) || []).length + 1;
+				let prefix = child.name.split(" ")[0]
+
+				if (!hasJDprefix) { // no prefix - add a new one
+					// TODO: do not add prefixes - either only when setting on or on command call
+				}
+
+				// let newPrefix = prefix.split("-").map(str => str[1].padStart(2, newFolderPrefix[0])).join("-");
+				if (parentJDprefixLevel == 0) { // level 0
+					let newPrefix = prefix[1].padStart(2, newFolderPrefix[0])
+					thisFolder.vault.rename(child, newPrefix + " " + child.name.split(" ")[1])
+				} else if (parentJDprefixLevel == 1) { // level 1
+					// let newPrefix = prefix[
+				} else { // level >= 2
+
+				}
+
+				
+
+				// 00-09
+				// 01
+				// 01.11
+			})
+
+			return filesChanged;
 		}
 		
 		this.app.vault.on('rename', (file, oldPath) => {
 			// Check if file was moved to another folder - othwerwise do nothing
 			if (file.path.substring(0, file.path.lastIndexOf('/')) === oldPath.substring(0, oldPath.lastIndexOf('/'))) { return }
 
-			// TODO: Make sure to only rename when the it has a prefix || plainName != file.name
+			// TODO: Make sure to only rename when the file has no prefix or has one that's different than desired
 			let hasJDprefix = (file.name.match(/^\d{2}\.\d{2} /) || file.name.match(/^\d{2} /)) ? true : false;
 			let fileJDprefix = hasJDprefix ? file.name.substring(0, file.name.indexOf(' ')) : null;
 			let filePlainName = hasJDprefix ? file.name.substring(file.name.indexOf(' ') + 1) : file.name;
@@ -52,8 +91,9 @@ export default class JohnnyDecimalPlugin extends Plugin {
 
 			// Handling folders
 			if (!file.hasOwnProperty('extension')) {
+				console.log(file);
 				if (!parentHasJDprefix && !parentHasTopLevelJDprefix) { // Remove prefix if parent does not have one
-					removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+					removePrefixIfPresent(file, hasJDprefix, filePlainName);
 					return;
 				}
 
@@ -74,7 +114,7 @@ export default class JohnnyDecimalPlugin extends Plugin {
 
 					if (newPrefixNumber > 9) { // Top level folder full - do not add prefix
 						new Notice("There is no more space for additional categories in this folder!");
-						removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+						removePrefixIfPresent(file, hasJDprefix, filePlainName);
 						return;
 					}
 
@@ -90,10 +130,9 @@ export default class JohnnyDecimalPlugin extends Plugin {
 					if (this.settings.divergeFromOriginalJD && this.settings.flattenedStructure) {
 						if (this.settings.foldersInFirstTen) {
 							let first10prefixes = [...Array(10).keys()].map(num => (num+1).toString().padStart(2, "0"));
-							console.log(first10prefixes);
 							if (first10prefixes.every(pref => usedPrefixNumbers.contains(pref))) { // Top level folder full - do not add prefix
 								new Notice("All first 10 prefixes are occupied!");
-								removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+								removePrefixIfPresent(file, hasJDprefix, filePlainName);
 								return;
 							}
 
@@ -102,18 +141,18 @@ export default class JohnnyDecimalPlugin extends Plugin {
 							if (!hasJDprefix || (fileJDprefix !== parentJDprefix + "." + prefixIDpart)) { // Add or update prefix
 								let newPrefixedName = parentJDprefix + "." + prefixIDpart + " " + filePlainName;
 								this.app.vault.rename(file, file.parent.path + "/" + newPrefixedName);
-								return;	
+								return;
 							}
 						}
 
 						// If flattened but without folders in first 10, then remove prefix
-						removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+						removePrefixIfPresent(file, hasJDprefix, filePlainName);
 						return;
 					}
 					
 					// Set prefix if structure not flattened
 					if (!hasJDprefix || (fileJDprefix !== parentJDprefix)) { // Add or update prefix
-						let newPrefixNumber = Number(usedPrefixNumbers[usedPrefixNumbers.length - 1]) + 1 || 11;
+						let newPrefixNumber = Math.max(Number(usedPrefixNumbers[usedPrefixNumbers.length - 1]) + 1, 11) || 11;
 						let newPrefixedName = parentJDprefix + "." + newPrefixNumber + " " + filePlainName;
 						this.app.vault.rename(file, file.parent.path + "/" + newPrefixedName);
 						return;
@@ -123,9 +162,7 @@ export default class JohnnyDecimalPlugin extends Plugin {
 				}
 
 				if (parentJDprefixLevel >= 2) { // Parent prefix level high - not adding prefix to folder
-					console.log("entered level 2+");
-					console.log(this);
-					removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+					removePrefixIfPresent(file, hasJDprefix, filePlainName);
 					return;
 				}
 				return;
@@ -133,12 +170,12 @@ export default class JohnnyDecimalPlugin extends Plugin {
 
 			// Handling files
 			if (parentHasTopLevelJDprefix) { // Remove prefix for FILES in top-level JD folder
-				removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+				removePrefixIfPresent(file, hasJDprefix, filePlainName);
 				return
 			}
 
 			if (!parentHasJDprefix) { // Remove prefix if parent does not have one
-				removePrefixIfPresent(this.app.vault, file, hasJDprefix, filePlainName);
+				removePrefixIfPresent(file, hasJDprefix, filePlainName);
 				return;
 			}
 			
