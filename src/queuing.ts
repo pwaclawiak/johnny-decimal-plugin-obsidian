@@ -1,5 +1,6 @@
-import { TAbstractFile } from 'obsidian';
-import { stripJDIndexesFromPath } from './utils'
+import { TAbstractFile, TFile, TFolder } from 'obsidian';
+import { getFileNameFlattened, getFolderNameFlattened, getLevel1PrefixFolderName, getLevel2PrefixFolderName, JDFileAttributes, stripJDIndexesFromPath } from './utils'
+import { JohnnyDecimalPluginSettings } from 'settings';
 
 
 // Name string or a function to check sibling prefixes on rename attempt.
@@ -13,10 +14,17 @@ export const renameInProgress: Set<string> = new Set();
 * Try to rename safely: re-resolve the file if needed and retry a few times
 * to avoid "file does not exist" errors when parent folders are being moved.
 */
-export async function safeRename(vault: any, file: TAbstractFile, newNameOrFactory: newNameOrFactory, maxRetries = 3): Promise<void> {
+export async function safeRename(
+    vault: any,
+    file: TAbstractFile,
+    jdFile: JDFileAttributes,
+    settings: JohnnyDecimalPluginSettings,
+    maxRetries = 3): Promise<void>
+{
     let attempt = 0;
     let lastErr: any = null;
     while (attempt < maxRetries) {
+
         // re-resolve current file reference
         const resolved = vault.getAbstractFileByPath(file.path) || file;
         file = resolved;
@@ -27,15 +35,34 @@ export async function safeRename(vault: any, file: TAbstractFile, newNameOrFacto
         const currentParentPath = parentSepIndex >= 0 ? currentPath.substring(0, parentSepIndex) : "";
         
         let evaluatedName: string = file.name;
-        try {
-            if (typeof newNameOrFactory === "function") {
-                evaluatedName = await (newNameOrFactory as ((f: TAbstractFile) => Promise<string> | string))(file);
-            } else {
-                evaluatedName = newNameOrFactory;
+
+
+
+
+
+        if (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix()) {
+            if (jdFile.hasJDprefix) {
+                evaluatedName = jdFile.filePlainName;
             }
-        } catch (e) {
-            lastErr = e;
+        } else {
+            if (file instanceof TFile) {
+                if (settings.divergeFromOriginalJD && settings.flattenedStructure) {
+                    evaluatedName = getFileNameFlattened(file, jdFile);
+                } else {
+                    evaluatedName = jdFile.filePlainName;
+                }
+            } else if (file instanceof TFolder) {
+                if (settings.divergeFromOriginalJD && settings.flattenedStructure) {
+                    evaluatedName = getFolderNameFlattened(file, jdFile, settings.foldersInFirstTen)
+                } else {
+                    if (!file.parent || (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix())) return;
+                    if (jdFile.getParentJDprefixLevel() == 0) evaluatedName = getLevel1PrefixFolderName(file, jdFile);
+                    else if (jdFile.getParentJDprefixLevel() == 1) evaluatedName = getLevel2PrefixFolderName(file, jdFile);
+                }
+            }
         }
+        // If no file name change required, then skip
+        if (evaluatedName === file.name) return;
         
         const newPath = (currentParentPath === "" ? "" : currentParentPath + "/") + evaluatedName;
         console.log(stripJDIndexesFromPath(file.path) + ": " + file.path + " --> " + newPath);
@@ -53,13 +80,18 @@ export async function safeRename(vault: any, file: TAbstractFile, newNameOrFacto
 }
 
 // Enqueued rename that serializes by parent path and uses safeRename.
-export function enqueueRename(vault: any, file: TAbstractFile, newNameOrFactory: newNameOrFactory): Promise<void> {
+export function enqueueRename(
+    vault: any,
+    file: TAbstractFile,
+    jdFile: JDFileAttributes,
+    settings: JohnnyDecimalPluginSettings): Promise<void>
+{
     const strippedPath = stripJDIndexesFromPath(file.path);
     const strippedParentPath = file.parent ? stripJDIndexesFromPath(file.parent.path) : "";
 
     if (!renameInProgress.has(strippedPath)) {
         const existing = renameQueue.get(strippedParentPath) ?? Promise.resolve();
-        const next = existing.then(() => safeRename(vault, file, newNameOrFactory));
+        const next = existing.then(() => safeRename(vault, file, jdFile, settings));
 
         renameQueue.set(strippedParentPath, next);
         renameInProgress.add(strippedPath);
@@ -73,7 +105,4 @@ export function enqueueRename(vault: any, file: TAbstractFile, newNameOrFactory:
         return next;
     }
     return Promise.resolve();
-
-    // const parentPath = file.parent ? file.parent.path : "";
-    // return enqueueAfterParent(parentPath, () => safeRename(vault, file, newNameOrFactory));
 }

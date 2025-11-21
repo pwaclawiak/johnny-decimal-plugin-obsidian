@@ -1,16 +1,8 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
-import { JDFileAttributes} from './utils'
-import {
-    setLevel1Prefix, setLevel2Prefix, handleFolderFlattenedStructure,
-    handleFileFlattenedStructure, removePrefixIfPresent
-} from './jd-logic';
-import { renameInProgress, renameQueue } from 'queuing';
+import { JDFileAttributes, stripJDIndexesFromPath } from './utils'
+import { enqueueRename, renameInProgress, renameQueue } from './queuing';
+import { JohnnyDecimalPluginSettings } from './settings';
 
-interface JohnnyDecimalPluginSettings {
-    divergeFromOriginalJD: boolean;
-    flattenedStructure: boolean;
-    foldersInFirstTen: boolean;
-}
 
 const DEFAULT_SETTINGS: JohnnyDecimalPluginSettings = {
     divergeFromOriginalJD: false,
@@ -32,54 +24,24 @@ export default class JohnnyDecimalPlugin extends Plugin {
 
         // expose plugin instance for subtree processor
         activePlugin = this;
-
+        
+        // TODO: use the fileManager to rename files instead of vault.rename to make sure links are updated
+        const fileManager = this.app.fileManager;
         this.app.vault.on('rename', async (file, oldPath) => {
 
             // Skip handling if an ancestor path is under plugin subtree processing
-            // if (isInProgress(stripJDIndexesFromPath(file.path))) return;
+            // TODO: jeśli coś nie będzie działać, to sprawdzić bez tego
+            if (renameInProgress.has(stripJDIndexesFromPath(file.path))) return;
 
             // Check if file was moved to another folder - do not do anything on simple name change
             if (file.path.substring(0, file.path.lastIndexOf('/')) === oldPath.substring(0, oldPath.lastIndexOf('/'))) { return }
 
             const jdFile = new JDFileAttributes(file, oldPath);
             // console.log(file.name, renameInProgress);
-            console.log(file.name, renameQueue);
+            // console.log(file.name, renameQueue);
 
-            // File in root folder - remove prefix if present
-            if (!file.parent || file.parent.path == "/") { 
-                await removePrefixIfPresent(file, jdFile.hasJDprefix, jdFile.filePlainName);
-                return;
-            }
+            await enqueueRename(this.app.vault, file, jdFile, this.settings);
 
-            //##################===================------------------- -------------------===================##################//
-            //################================----------------  Handling files ----------------================################//
-            //##################===================------------------- -------------------===================##################//
-            if (file instanceof TFile) {
-                // Files are leaf nodes that do not have prefixes unless using Flattened Structure setting
-                // In that case files should only have prefixes if they are on level 2
-                if (jdFile.parentHasTopLevelJDprefix()) { // Remove prefix for FILES in top-level JD folder
-                    await removePrefixIfPresent(jdFile.file, jdFile.hasJDprefix, jdFile.filePlainName);
-                    return;
-                }
-            
-                if (!jdFile.parentHasJDprefix) { // Remove prefix if parent does not have one
-                    await removePrefixIfPresent(jdFile.file, jdFile.hasJDprefix, jdFile.filePlainName);
-                    return;
-                }
-            
-                // Use file prefixes in flatten mode only
-                if (this.settings.divergeFromOriginalJD && this.settings.flattenedStructure) {
-                    await handleFileFlattenedStructure(jdFile);
-                }
-                return;
-            }
-            
-            //##################===================------------------- -------------------===================##################//
-            //################================--------------  Handling folders ---------------=================################//
-            //##################===================------------------- -------------------===================##################//
-            
-            // Assert file instanceof TFolder
-            // Remove prefix if parent does not have one
             // FIXME: w momencie wykonywania tego kodu (przy dodawaniu rename do kolejki) rodzic ma prefix 1 level
             // w międzyczasie wykonany zostaje job, który usuwa prefix rodzica
             // zakolejkowany został job ustawienia prefixu 2 poziomu dla dziecka i taki job się wykonuje
@@ -89,46 +51,7 @@ export default class JohnnyDecimalPlugin extends Plugin {
             // trzeba zmienić sposób ustalania prefixu, albo jeszcze lepiej moment określania jaki job ma być wykonany
             // i kolejkować po prostu zmianę nazwy, a dopiero w trakcie wykonywania joba ustalać,
             // czy w ogóle ma być jakiś prefix, a jeśli tak, to który poziom i jaki prefix
-            if (jdFile.getParentJDprefix() == '') {
-                await removePrefixIfPresent(file, jdFile.hasJDprefix, jdFile.filePlainName);
-                return;
-            }
 
-            // Parent is a top-level JD folder | 00-09
-            if (jdFile.parentHasTopLevelJDprefix()) {
-                await setLevel1Prefix(jdFile);
-                // process immediate children after folder rename
-                // if (file instanceof TFolder) await processFolderChildren(file, activePlugin);
-                return;
-            }
-            
-            // Parent has a regular JD prefix | 01
-            if (jdFile.getParentJDprefixLevel() == 1) {
-                // Flattened handling
-                if (this.settings.divergeFromOriginalJD && this.settings.flattenedStructure) {
-                    if (this.settings.foldersInFirstTen) {
-                        await handleFolderFlattenedStructure(jdFile);
-                        // process immediate children after folder rename
-                        // if (file instanceof TFolder) await processFolderChildren(file, activePlugin);
-                        return;
-                    }
-                    // If flattened but without folders in first 10, then remove prefix
-                    await removePrefixIfPresent(file, jdFile.hasJDprefix, jdFile.filePlainName);
-                    return;
-                }
-
-                // Standard (non-flattened): compute the new secondary prefix inside queued factory
-                await setLevel2Prefix(jdFile);
-                // process immediate children after folder rename
-                // if (file instanceof TFolder) await processFolderChildren(file, activePlugin);
-                return;
-            }
-
-            // Parent prefix level max depth - not adding prefix to folder | 01.11
-            else { // (parentJDprefixLevel >= 2)
-                await removePrefixIfPresent(file, jdFile.hasJDprefix, jdFile.filePlainName);
-                return;
-            }
         });
 
         this.addRibbonIcon('dice', 'Greet', () => {
