@@ -1,4 +1,4 @@
-import { TAbstractFile, TFile, TFolder } from 'obsidian';
+import { TAbstractFile, TFile, TFolder, FileManager } from 'obsidian';
 import { getFileNameFlattened, getFolderNameFlattened, getLevel1PrefixFolderName, getLevel2PrefixFolderName, JDFileAttributes, stripJDIndexesFromPath } from './utils'
 import { JohnnyDecimalPluginSettings } from 'settings';
 
@@ -16,6 +16,7 @@ export const renameInProgress: Set<string> = new Set();
 */
 export async function safeRename(
     vault: any,
+    fileManager: FileManager,
     file: TAbstractFile,
     jdFile: JDFileAttributes,
     settings: JohnnyDecimalPluginSettings,
@@ -23,6 +24,7 @@ export async function safeRename(
 {
     let attempt = 0;
     let lastErr: any = null;
+
     while (attempt < maxRetries) {
 
         // re-resolve current file reference
@@ -33,14 +35,10 @@ export async function safeRename(
         const currentPath = file.path || "";
         const parentSepIndex = currentPath.lastIndexOf("/");
         const currentParentPath = parentSepIndex >= 0 ? currentPath.substring(0, parentSepIndex) : "";
-        
+
         let evaluatedName: string = file.name;
 
-
-
-
-
-        if (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix()) {
+        if (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix()) {  // Parent has no JD prefix
             if (jdFile.hasJDprefix) {
                 evaluatedName = jdFile.filePlainName;
             }
@@ -52,27 +50,33 @@ export async function safeRename(
                     evaluatedName = jdFile.filePlainName;
                 }
             } else if (file instanceof TFolder) {
-                if (settings.divergeFromOriginalJD && settings.flattenedStructure) {
-                    evaluatedName = getFolderNameFlattened(file, jdFile, settings.foldersInFirstTen)
-                } else {
-                    if (!file.parent || (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix())) return;
-                    if (jdFile.getParentJDprefixLevel() == 0) evaluatedName = getLevel1PrefixFolderName(file, jdFile);
-                    else if (jdFile.getParentJDprefixLevel() == 1) evaluatedName = getLevel2PrefixFolderName(file, jdFile);
+                if (!file.parent || (!jdFile.parentHasJDprefix() && !jdFile.parentHasTopLevelJDprefix())) return;  // No parent or no parent prefix
+                if (jdFile.getParentJDprefixLevel() === 0) evaluatedName = getLevel1PrefixFolderName(file, jdFile);
+                else if (jdFile.getParentJDprefixLevel() === 1) {
+                    if (settings.divergeFromOriginalJD && settings.flattenedStructure) {
+                        evaluatedName = getFolderNameFlattened(file, jdFile, settings.foldersInFirstTen)
+                    }
+                    else {
+                        evaluatedName = getLevel2PrefixFolderName(file, jdFile)
+                    }
                 }
             }
         }
         // If no file name change required, then skip
+        console.log("Renaming from:  " + file.name + "  to:  " + evaluatedName);
         if (evaluatedName === file.name) return;
         
         const newPath = (currentParentPath === "" ? "" : currentParentPath + "/") + evaluatedName;
         console.log(stripJDIndexesFromPath(file.path) + ": " + file.path + " --> " + newPath);
 
         try {
-            await vault.rename(file, newPath);
+            // if (file instanceof TFile) fileManager.renameFile(file, newPath);
+            // else vault.rename(file, newPath);
+            vault.rename(file, newPath);
             return;
         } catch (err) {
             lastErr = err;
-            await new Promise((r) => setTimeout(r, 20 + attempt * 10));
+            await new Promise((r) => setTimeout(r, 40 + attempt * 15));
             attempt++;
         }
     }
@@ -82,6 +86,7 @@ export async function safeRename(
 // Enqueued rename that serializes by parent path and uses safeRename.
 export function enqueueRename(
     vault: any,
+    fileManager: FileManager,
     file: TAbstractFile,
     jdFile: JDFileAttributes,
     settings: JohnnyDecimalPluginSettings): Promise<void>
@@ -91,7 +96,7 @@ export function enqueueRename(
 
     if (!renameInProgress.has(strippedPath)) {
         const existing = renameQueue.get(strippedParentPath) ?? Promise.resolve();
-        const next = existing.then(() => safeRename(vault, file, jdFile, settings));
+        const next = existing.then(() => safeRename(vault, fileManager, file, jdFile, settings));
 
         renameQueue.set(strippedParentPath, next);
         renameInProgress.add(strippedPath);
