@@ -42,6 +42,17 @@ export class JDFileAttributes {
 }
 
 /**
+ * Get the JD prefix level of a file/folder name (not its parent).
+ * Returns: 0 for XX-YY prefix, 1 for XX prefix, 2 for XX.YY prefix, -1 for no prefix
+ */
+export function getJDprefixLevel(name: string): number {
+    if (name.match(/^\d{2}\-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area")
+    if (name.match(/^\d{2} /)) return 1;         // Category (e.g., "01 Category")  
+    if (name.match(/^\d{2}\.\d{2} /)) return 2;  // ID (e.g., "01.01 Item")
+    return -1;  // No JD prefix
+}
+
+/**
  * Strip any Johnny Decimal prefix from the target path string
  * @param path - full file/folder path (relative to vault root)  
  */
@@ -73,7 +84,7 @@ export function getLevel1PrefixFolderName(file: TAbstractFile, jdFile: JDFileAtt
 
     // Top level folder full - do not add prefix
     if (newPrefixNumber.toString() > jdFile.getParentJDprefix().substring(4)) { 
-        new Notice("There is no more space for additional categories in this folder!");
+        new Notice("There is no more space for additional categories in this area!");
         return jdFile.filePlainName;
     }
 
@@ -131,7 +142,7 @@ export function getFileNameFlattened(file: TAbstractFile, jdFile: JDFileAttribut
 
 export function getFolderNameFlattened(file: TAbstractFile, jdFile: JDFileAttributes, foldersInFirstTen: boolean): string {
     if (!file.parent) return jdFile.filePlainName;
-    if (!foldersInFirstTen && jdFile.getParentJDprefixLevel() >= 1) return jdFile.filePlainName;
+    if (!(foldersInFirstTen && jdFile.getParentJDprefixLevel() === 1)) return jdFile.filePlainName;
 
     let first10prefixes = [...Array(10).keys()].map(num => (num + 1).toString().padStart(2, "0"));
 

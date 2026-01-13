@@ -1,6 +1,6 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder } from 'obsidian';
 import { JDFileAttributes, stripJDIndexesFromPath } from './utils'
-import { enqueueRename, renameInProgress, renameQueue } from './queuing';
+import { scheduleSubtreeRenames, isPathOrAncestorInProgress } from './queuing';
 import { JohnnyDecimalPluginSettings } from './settings';
 
 
@@ -30,27 +30,12 @@ export default class JohnnyDecimalPlugin extends Plugin {
         this.app.vault.on('rename', async (file, oldPath) => {
 
             // Skip handling if an ancestor path is under plugin subtree processing
-            // TODO: jeśli coś nie będzie działać, to sprawdzić bez tego
-            if (renameInProgress.has(stripJDIndexesFromPath(file.path))) return;
-
+            if (isPathOrAncestorInProgress(file.path)) return;
+            
             // Check if file was moved to another folder - do not do anything on simple name change
             if (file.path.substring(0, file.path.lastIndexOf('/')) === oldPath.substring(0, oldPath.lastIndexOf('/'))) { return }
 
-            const jdFile = new JDFileAttributes(file, oldPath);
-            // console.log(file.name, renameInProgress);
-            // console.log(file.name, renameQueue);
-
-            await enqueueRename(this.app.vault, file, jdFile, this.settings);
-
-            // FIXME: w momencie wykonywania tego kodu (przy dodawaniu rename do kolejki) rodzic ma prefix 1 level
-            // w międzyczasie wykonany zostaje job, który usuwa prefix rodzica
-            // zakolejkowany został job ustawienia prefixu 2 poziomu dla dziecka i taki job się wykonuje
-            // (następuje określanie docelowego prefixu poziomu drugiego, podczas gdy rodzic nie ma już prefixu
-            // w związku z tym funkcja getParentJDprefix zwraca pusty string, do którego dopisana zostaje
-            // część ID prefixu i w ostateczności nazwa folderu zaczyna się od kropki i zostaje ukryty)
-            // trzeba zmienić sposób ustalania prefixu, albo jeszcze lepiej moment określania jaki job ma być wykonany
-            // i kolejkować po prostu zmianę nazwy, a dopiero w trakcie wykonywania joba ustalać,
-            // czy w ogóle ma być jakiś prefix, a jeśli tak, to który poziom i jaki prefix
+            await scheduleSubtreeRenames(this.app.vault, this.app.fileManager, file, this.settings);
 
         });
 
@@ -200,9 +185,9 @@ class JDPluginSettingTab extends PluginSettingTab {
 
         new Setting(this.flattenedOptionsEl)
             .setName('Allow folders at first 10 IDs')
-            .setDesc('Allow indexing subfolders with the first 10 IDs in category folders (e.g. |01 Me|). \
-                These subfolders provide additional depth for further categorization on the same level \
-                where *notes and regular files* reside.')
+            .setDesc('Allow indexing subfolders with the first 10 IDs in category folders (e.g. |11.01 My secrets|) \
+                on the same level where files are stored with IDs starting from xx.11. It provides additional \
+                depth for further categorization on the same level where *notes and regular files* reside.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.foldersInFirstTen)
                 .onChange(async (value) => {
