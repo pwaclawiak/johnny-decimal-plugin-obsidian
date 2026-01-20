@@ -1,7 +1,7 @@
 {
 	"name": "johnny-decimal-plugin",
-	"version": "1.0.0",
-	"description": "This is a plugin for automatic file renaming to match Johnny Decimal System.",
+	"version": "0.9.0",
+	"description": "A plugin for automatic file renaming according to Johnny Decimal System.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -9,14 +9,15 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],
-	"author": "",
-	"license": "MIT",
+	"author": "Pawel Waclawiak",
+	"license": "GNU GPL-3.0",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
-		"esbuild": "0.17.3",
+		"esbuild": "^0.27.2",
+		"eslint": "^8.57.1",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
