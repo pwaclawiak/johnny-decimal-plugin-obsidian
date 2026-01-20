@@ -1,5 +1,5 @@
 {
-	"name": "johnny-decimal-plugin",
+	"name": "johnny-decimal",
 	"version": "0.9.0",
 	"description": "A plugin for automatic file renaming according to Johnny Decimal System.",
 	"main": "main.js",
