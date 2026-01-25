@@ -5,7 +5,6 @@ import {
     getFileFolderName,
     isLevel0PrefixAvailable,
     getJDprefix,
-    getFileFolderPlainName
 } from './utils'
 import { JohnnyDecimalPluginSettings } from 'settings';
 
@@ -110,7 +109,7 @@ async function safeRename(
     maxRetries = 3
 ): Promise<TAbstractFile | null> {
     let attempt = 0;
-    let lastErr: any = null;
+    let lastErr: Error | null = null;
 
     while (attempt < maxRetries) {        
         // Wait a bit before retrying to allow filesystem to settle
@@ -144,7 +143,7 @@ async function safeRename(
     return null;
 }
 
-async function enqueueRename(vault: Vault, fileManager: FileManager, file: TAbstractFile, queueKey: string, lockKey: string, newFileName: string): Promise<void> {
+function enqueueRename(vault: Vault, fileManager: FileManager, file: TAbstractFile, queueKey: string, lockKey: string, newFileName: string){
     const previousPromise = renameQueue.get(queueKey) || Promise.resolve();
     const nextPromise = previousPromise
         .catch(() => {
@@ -160,13 +159,17 @@ async function enqueueRename(vault: Vault, fileManager: FileManager, file: TAbst
 
     // Update the queue with the new tail promise
     renameQueue.set(queueKey, nextPromise);
-    nextPromise.then(() => {
-        // Only delete if the queue hasn't grown since we started
-        if (renameQueue.get(queueKey) === nextPromise) {
-            renameQueue.delete(queueKey);
-        }
-    });
-    return nextPromise;
+    nextPromise
+        .then(() => {
+            // Only delete if the queue hasn't grown since we started
+            if (renameQueue.get(queueKey) === nextPromise) {
+                renameQueue.delete(queueKey);
+            }
+        })
+        .catch(() => {
+            // Log error but keep the queue intact for further operations
+            console.error(`Error: could not clear queueKey: ${queueKey}...`);
+        });
 }
 
 /**
