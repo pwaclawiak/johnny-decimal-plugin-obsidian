@@ -50,13 +50,9 @@ export function stripJDIndexesFromPath(path: string): string {
     if (!path) throw Error("stripJDIndexesFromPath: empty path");
 
     const parts = path.split('/');
-    console.log(parts);
     for (let i = 0; i < parts.length; i++) {
-        let new_parts = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2');
-        console.log(`Old part: ${parts[i]}, new part: ${new_parts}`);
         parts[i] = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2');
     }
-    console.log(parts.join('/'));
     return parts.join('/');
 }
 
@@ -65,7 +61,6 @@ export function stripJDIndexesFromPath(path: string): string {
  * Returns: 0 for XX-YY prefix, 1 for XX prefix, 2 for XX.YY prefix, -1 for no prefix
  */
 export function getJDprefixLevel(name: string): number {
-    console.log(`Getting JD prefix level for name: ${name}`);
     if (name.match(/^\d{2}-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area")
     if (name.match(/^\d{2} /)) return 1;         // Category (e.g., "01 Category")  
     if (name.match(/^\d{2}.\d{2} /)) return 2;  // ID (e.g., "01.01 Item")
@@ -107,10 +102,6 @@ export class JDFileAttributes {
             return parentIndexPart;
         }
         return ''
-    }
-
-    public getParentJDprefixLevel():number {
-        return this.parentHasTopLevelJDprefix() ? 0 : (this.getParentJDprefix().match(/./g) || []).length + 1
     }
 
     public getParentPlainName(): string {
@@ -222,7 +213,7 @@ function moveToLevel2PrefixedName(file: TAbstractFile, jdFile: JDFileAttributes)
 function renamedFilePrefixedName(jdFile: JDFileAttributes, oldPath: string): string {
     // It is assumed this function is called only when direct rename happened
     const parentPrefix = jdFile.getParentJDprefix();
-    const parentPrefixLevel = jdFile.getParentJDprefixLevel();
+    const parentPrefixLevel = getJDprefixLevel(jdFile.file.parent?.name || '');
     const prefixLevel = getJDprefixLevel(jdFile.oldName);
     const oldFileName = getFileFolderName(oldPath);
     if (prefixLevel === parentPrefixLevel + 1 && jdFile.fileJDprefix.substring(0, prefixLevel) !== parentPrefix.substring(0, prefixLevel)) {
@@ -296,11 +287,11 @@ export function getFileNameFlattened(file: TAbstractFile, jdFile: JDFileAttribut
 
 function getNewFileNameFlattened(file: TAbstractFile, jdFile: JDFileAttributes): string {
     if (!file.parent) return jdFile.oldName;
-    if (jdFile.getParentJDprefixLevel() !== 1) return jdFile.oldName;
+    if (getJDprefixLevel(file.parent.name) !== 1) return jdFile.oldName;
 
     const prefixRegex = RegExp(`^${jdFile.getParentJDprefix()}.\\d{2} `);
 
-    if (jdFile.getParentJDprefixLevel() == 1 && (!jdFile.hasJDprefix
+    if (getJDprefixLevel(file.parent.name) == 1 && (!jdFile.hasJDprefix
         || !jdFile.fileJDprefix.match(prefixRegex)))
     {
         const siblings = file.parent.children;
@@ -321,7 +312,7 @@ function getNewFileNameFlattened(file: TAbstractFile, jdFile: JDFileAttributes):
 
 export function getFolderNameFlattened(file: TAbstractFile, jdFile: JDFileAttributes, foldersInFirstTen: boolean): string {
     if (!file.parent) return jdFile.filePlainName;
-    if (!(foldersInFirstTen && jdFile.getParentJDprefixLevel() === 1)) return jdFile.filePlainName;
+    if (!(foldersInFirstTen && getJDprefixLevel(file.parent.name) === 1)) return jdFile.filePlainName;
 
     let first10prefixes = [...Array(10).keys()].map(num => (num + 1).toString().padStart(2, "0"));
 
