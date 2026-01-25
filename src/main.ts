@@ -102,15 +102,15 @@ class JDPluginSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setHeading()
-            .setName('Use modified approach to Johnny Decimal') // /skip system name should be kept in capital case
+            .setName('Use modified approach to Johnny Decimal') //skip system name should be kept in capital case
             .setDesc('Without this setting you get a standard Johnny Decimal system as described by Johnny. \
                 Turning it ON allows for structure modifications to \'better\' fit Obsidian\'s capabilities \
-                of vault-wide file search. It is a way that I worked and it fits my needs.') // /skip system name should be kept in capital case
+                of vault-wide file search. It is a way that I worked and it fits my needs.') //skip system name should be kept in capital case
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.divergeFromOriginalJD)
                 .onChange(async (value) => {
                     this.plugin.settings.divergeFromOriginalJD = value;
-                    value ? this.divergeOptionsEl.show() : this.divergeOptionsEl.hide(); // /skip this allows showing/hiding additional options
+                    value ? this.divergeOptionsEl.show() : this.divergeOptionsEl.hide(); //skip this allows showing/hiding additional options
                     await this.plugin.saveSettings();
                 }));
 
@@ -120,12 +120,12 @@ class JDPluginSettingTab extends PluginSettingTab {
             .setName('Flattened folder structure')
             .setDesc('2 levels of folders instead of 3 levels.\
                 Instead of |10-19 Life admin| -> |11 Me| -> |11.11 Hobbies| -> (unnumbered files here), \
-                looks like |10-19 Life admin| -> |11 Me| -> (*numbered* files here)') // /skip visualization of folder structure
+                looks like |10-19 Life admin| -> |11 Me| -> (*numbered* files here)') //skip visualization of folder structure
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.flattenedStructure)
                 .onChange(async (value) => {
                     this.plugin.settings.flattenedStructure = value;
-                    value ? this.flattenedOptionsEl.show() : this.flattenedOptionsEl.hide(); // /skip this allows showing/hiding additional options
+                    value ? this.flattenedOptionsEl.show() : this.flattenedOptionsEl.hide(); //skip this allows showing/hiding additional options
                     await this.plugin.saveSettings();
                 }));
 
@@ -134,7 +134,7 @@ class JDPluginSettingTab extends PluginSettingTab {
         new Setting(this.flattenedOptionsEl)
             .setName('Allow folders at first 10 prefixes')
             .setDesc('Allow indexing folders with the first 10 prefixes in category folders e.g. |13.01 My secrets| \
-                where files are indexed starting from |13.11|. Provides additional depth if needed.')  // /skip folder name in example
+                where files are indexed starting from |13.11|. Provides additional depth if needed.')  //skip folder name in example
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.foldersInFirstTen)
                 .onChange(async (value) => {
