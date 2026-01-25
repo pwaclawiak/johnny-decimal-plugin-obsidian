@@ -7,7 +7,7 @@ import { TAbstractFile, TFolder, TFile, Notice } from 'obsidian';
  * @returns true if JD prefix exists, false otherwise
  */
 export function hasJDprefix(fileName: string): boolean {
-    return (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) ? true : false; //skip '-' is crucial part of the regex
+    return (fileName.match(/^(\d{2}[-.]\d{2}|\d{2})\ \w+/)) ? true : false;
 }
 
 /**
@@ -16,7 +16,7 @@ export function hasJDprefix(fileName: string): boolean {
  * @returns JD prefix if exists, empty string otherwise
  */
 export function getJDprefix(fileName: string): string {
-    if (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) { //skip '-' is crucial part of the regex
+    if (fileName.match(/^(\d{2}[-.]\d{2}|\d{2})\ \w+/)) {
         return fileName.substring(0, fileName.indexOf(' '));
     }
     return '';
@@ -50,10 +50,13 @@ export function stripJDIndexesFromPath(path: string): string {
     if (!path) throw Error("stripJDIndexesFromPath: empty path");
 
     const parts = path.split('/');
+    console.log(parts);
     for (let i = 0; i < parts.length; i++) {
-        parts[i] = parts[i].replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2'); //skip '-' is crucial part of the regex
+        let new_parts = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2');
+        console.log(`Old part: ${parts[i]}, new part: ${new_parts}`);
+        parts[i] = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2');
     }
-
+    console.log(parts.join('/'));
     return parts.join('/');
 }
 
@@ -62,9 +65,10 @@ export function stripJDIndexesFromPath(path: string): string {
  * Returns: 0 for XX-YY prefix, 1 for XX prefix, 2 for XX.YY prefix, -1 for no prefix
  */
 export function getJDprefixLevel(name: string): number {
-    if (name.match(/^\d{2}\-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area") //skip '-' is crucial part of the regex
+    console.log(`Getting JD prefix level for name: ${name}`);
+    if (name.match(/^\d{2}-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area")
     if (name.match(/^\d{2} /)) return 1;         // Category (e.g., "01 Category")  
-    if (name.match(/^\d{2}\.\d{2} /)) return 2;  // ID (e.g., "01.01 Item")
+    if (name.match(/^\d{2}.\d{2} /)) return 2;  // ID (e.g., "01.01 Item")
     return -1;  // No JD prefix
 }
 
@@ -81,8 +85,8 @@ export class JDFileAttributes {
         this.file = file;
         this.oldName = oldPath.substring(oldPath.lastIndexOf("/") + 1)  // Old file name
 
-        this.hasJDprefix = (this.oldName.match(/^\d{2}\-\d{2} /) || //skip '-' is crucial part of the regex
-            this.oldName.match(/^\d{2}\.\d{2} /) ||
+        this.hasJDprefix = (this.oldName.match(/^\d{2}-\d{2} /) ||
+            this.oldName.match(/^\d{2}.\d{2} /) ||
             this.oldName.match(/^\d{2} /)) ? true : false;
         this.fileJDprefix = this.hasJDprefix ? this.oldName.substring(0, this.oldName.indexOf(' ')) : "";
         this.filePlainName = this.hasJDprefix ? this.oldName.substring(this.oldName.indexOf(' ') + 1) : this.oldName;
@@ -90,11 +94,11 @@ export class JDFileAttributes {
     }
 
     public parentHasTopLevelJDprefix():boolean {
-        return this.file.parent?.name.match(/^\d{2}\-\d{2} /) ? true : false; //skip '-' is crucial part of the regex
+        return this.file.parent?.name.match(/^\d{2}-\d{2} /) ? true : false;
     }
 
     public parentHasJDprefix():boolean {
-        return this.file.parent?.name.match(/^\d{2}\.\d{2} /) || this.file.parent?.name.match(/^\d{2} /) ? true : false;
+        return this.file.parent?.name.match(/^\d{2}.\d{2} /) || this.file.parent?.name.match(/^\d{2} /) ? true : false;
     }
 
     public getParentJDprefix(): string {
@@ -106,11 +110,11 @@ export class JDFileAttributes {
     }
 
     public getParentJDprefixLevel():number {
-        return this.parentHasTopLevelJDprefix() ? 0 : (this.getParentJDprefix().match(/\./g) || []).length + 1
+        return this.parentHasTopLevelJDprefix() ? 0 : (this.getParentJDprefix().match(/./g) || []).length + 1
     }
 
     public getParentPlainName(): string {
-        return this.file.parent?.name.replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2') || ""; //skip '-' is crucial part of the regex
+        return this.file.parent?.name.replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2') || "";
     }
 }
 
@@ -121,7 +125,7 @@ export function isLevel0PrefixAvailable(file: TAbstractFile): boolean {
     const siblingPrefixes = siblings
         .filter(sibling => sibling.name !== file.name)
         .filter(sibling => sibling instanceof TFolder)
-        .map(sibling => sibling.name.match(/^\d{2}\-\d{2} /)) //skip '-' is crucial part of the regex
+        .map(sibling => sibling.name.match(/^\d{2}-\d{2} /))
         .filter(matched => matched !== null)
         .sort()
         .map(matched => matched[0].substring(0, matched[0].indexOf(' ')));
@@ -141,7 +145,7 @@ function moveToLevel1PrefixedName(file: TAbstractFile, jdFile: JDFileAttributes)
     const siblingPrefixes = siblings
         .filter(sibling => sibling.name !== file.name)
         .filter(sibling => sibling instanceof TFolder)
-        .map(sibling => sibling.name.match(/^\d{2} /) )// || sibling.name.match(/^\d{2}\.\d{2} /))
+        .map(sibling => sibling.name.match(/^\d{2} /) )// || sibling.name.match(/^\d{2}.\d{2} /))
         .filter(matched => matched !== null)
         .sort()
         .map(matched => matched[0].substring(0, matched[0].indexOf(' ')));
@@ -204,7 +208,7 @@ function moveToLevel2PrefixedName(file: TAbstractFile, jdFile: JDFileAttributes)
     const siblingPrefixes = siblings
         .filter(sibling => sibling.name !== file.name)
         .filter(sibling => sibling instanceof TFolder)
-        .map(sibling => sibling.name.match(/^\d{2} /) || sibling.name.match(/^\d{2}\.\d{2} /))
+        .map(sibling => sibling.name.match(/^\d{2} /) || sibling.name.match(/^\d{2}.\d{2} /))
         .filter(matched => matched !== null)
         .sort()
         .map(matched => matched[0].substring(0, matched[0].indexOf(' ')));
@@ -325,7 +329,7 @@ export function getFolderNameFlattened(file: TAbstractFile, jdFile: JDFileAttrib
     const siblingPrefixes = siblings
         .filter(sibling => sibling.name !== file.name)
         .filter(sibling => sibling instanceof TFolder)
-        .map(sibling => (sibling.name.match(/^\d{2} /) || sibling.name.match(/^\d{2}\.\d{2} /)))
+        .map(sibling => (sibling.name.match(/^\d{2} /) || sibling.name.match(/^\d{2}.\d{2} /)))
         .filter(matched => matched !== null)
         .sort()
         .map(matched => matched[0].substring(0, matched[0].indexOf(' ')));
