@@ -9,19 +9,14 @@ const DEFAULT_SETTINGS: JohnnyDecimalPluginSettings = {
     foldersInFirstTen: false,
 }
 
-// Active plugin handle for subtree processor access.
-export let activePlugin: JohnnyDecimalPlugin | null = null;
-
-
 export default class JohnnyDecimalPlugin extends Plugin {
     settings: JohnnyDecimalPluginSettings;
 
     async onload() {
-        console.log('Johnny Decimal Plugin - Loaded');
+        console.debug('Johnny Decimal Plugin - Loaded');
         await this.loadSettings();
 
         // expose plugin instance for subtree processor
-        activePlugin = this;
         
         // TODO: use the fileManager to rename files instead of vault.rename to make sure links are updated
         this.app.vault.on('rename', async (file, oldPath) => {
@@ -59,8 +54,7 @@ export default class JohnnyDecimalPlugin extends Plugin {
     }
 
     onunload() {
-        activePlugin = null;
-        console.log('Johnny Decimal Plugin - Unloaded');
+        console.debug('Johnny Decimal Plugin - Unloaded');
     }
 
     async loadSettings() {
@@ -108,15 +102,15 @@ class JDPluginSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setHeading()
-            .setName('Use modified approach to Johnny Decimal')
+            .setName('Use modified approach to Johnny Decimal') // /skip system name should be kept in capital case
             .setDesc('Without this setting you get a standard Johnny Decimal system as described by Johnny. \
                 Turning it ON allows for structure modifications to \'better\' fit Obsidian\'s capabilities \
-                of vault-wide file search. It is a way that I worked and it fits my needs.')
+                of vault-wide file search. It is a way that I worked and it fits my needs.') // /skip system name should be kept in capital case
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.divergeFromOriginalJD)
                 .onChange(async (value) => {
                     this.plugin.settings.divergeFromOriginalJD = value;
-                    value ? this.divergeOptionsEl.show() : this.divergeOptionsEl.hide();
+                    value ? this.divergeOptionsEl.show() : this.divergeOptionsEl.hide(); // /skip this allows showing/hiding additional options
                     await this.plugin.saveSettings();
                 }));
 
@@ -124,24 +118,23 @@ class JDPluginSettingTab extends PluginSettingTab {
 
         new Setting(this.divergeOptionsEl)
             .setName('Flattened folder structure')
-            .setDesc('2 levels of folders instead of 3 levels. \
+            .setDesc('2 levels of folders instead of 3 levels.\
                 Instead of |10-19 Life admin| -> |11 Me| -> |11.11 Hobbies| -> (unnumbered files here), \
-                looks like |10-19 Life admin| -> |11 Me| -> (*numbered* files here)')
+                looks like |10-19 Life admin| -> |11 Me| -> (*numbered* files here)') // /skip visualization of folder structure
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.flattenedStructure)
                 .onChange(async (value) => {
                     this.plugin.settings.flattenedStructure = value;
-                    value ? this.flattenedOptionsEl.show() : this.flattenedOptionsEl.hide();
+                    value ? this.flattenedOptionsEl.show() : this.flattenedOptionsEl.hide(); // /skip this allows showing/hiding additional options
                     await this.plugin.saveSettings();
                 }));
 
         this.flattenedOptionsEl.createDiv();
 
         new Setting(this.flattenedOptionsEl)
-            .setName('Allow folders at first 10 IDs')
-            .setDesc('Allow indexing subfolders with the first 10 IDs in category folders (e.g. |11.01 My secrets|) \
-                on the same level where files are stored with IDs starting from xx.11. It provides additional \
-                depth for further categorization on the same level where *notes and regular files* reside.')
+            .setName('Allow folders at first 10 prefixes')
+            .setDesc('Allow indexing folders with the first 10 prefixes in category folders e.g. |13.01 My secrets| \
+                where files are indexed starting from |13.11|. Provides additional depth if needed.')  // /skip folder name in example
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.foldersInFirstTen)
                 .onChange(async (value) => {
