@@ -15,10 +15,7 @@ export default class JohnnyDecimalPlugin extends Plugin {
     async onload() {
         console.debug('Johnny Decimal Plugin - Loaded');
         await this.loadSettings();
-
-        // expose plugin instance for subtree processor
         
-        // TODO: use the fileManager to rename files instead of vault.rename to make sure links are updated
         this.app.vault.on('rename', async (file, oldPath) => {
             const fileManager = this.app.fileManager;
             const vault = this.app.vault;
@@ -48,6 +45,8 @@ export default class JohnnyDecimalPlugin extends Plugin {
         //         }
         //     }
         // });
+
+        // This adds a settings tab so the user can 
 
         // This adds a settings tab so the user can configure the plugin
         this.addSettingTab(new JDPluginSettingTab(this.app, this));
@@ -95,6 +94,7 @@ class JDPluginSettingTab extends PluginSettingTab {
 
     display(): void {
         const {containerEl} = this;
+        const plugin_name = "Johnny Decimal";
         this.divergeOptionsEl = containerEl.createDiv();
         this.flattenedOptionsEl = this.divergeOptionsEl.createDiv();
 
@@ -102,45 +102,49 @@ class JDPluginSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setHeading()
-            .setName('Use modified approach to Johnny Decimal') //skip system name should be kept in capital case
-            .setDesc('Without this setting you get a standard Johnny Decimal system as described by Johnny. \
-                Turning it ON allows for structure modifications to \'better\' fit Obsidian\'s capabilities \
-                of vault-wide file search. It is a way that I worked and it fits my needs.') //skip system name should be kept in capital case
+            .setName(`Modify your ${plugin_name}`)
+            .setDesc(`Additional, advanced options for customizing your ${plugin_name} system.`)
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.divergeFromOriginalJD)
                 .onChange(async (value) => {
                     this.plugin.settings.divergeFromOriginalJD = value;
-                    value ? this.divergeOptionsEl.show() : this.divergeOptionsEl.hide(); //skip this allows showing/hiding additional options
                     await this.plugin.saveSettings();
+
+                    this.display();
                 }));
 
         this.divergeOptionsEl.createDiv();
 
-        new Setting(this.divergeOptionsEl)
-            .setName('Flattened folder structure')
-            .setDesc('2 levels of folders instead of 3 levels.\
-                Instead of |10-19 Life admin| -> |11 Me| -> |11.11 Hobbies| -> (unnumbered files here), \
-                looks like |10-19 Life admin| -> |11 Me| -> (*numbered* files here)') //skip visualization of folder structure
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.flattenedStructure)
-                .onChange(async (value) => {
-                    this.plugin.settings.flattenedStructure = value;
-                    value ? this.flattenedOptionsEl.show() : this.flattenedOptionsEl.hide(); //skip this allows showing/hiding additional options
-                    await this.plugin.saveSettings();
-                }));
+        if (this.plugin.settings.divergeFromOriginalJD) {
+            new Setting(this.divergeOptionsEl)
+                .setName('Flattened folder structure')
+                .setDesc('2 levels of folders instead of 3 levels.\
+                    Instead of |10-19 life admin| -> |11 me| -> |11.11 hobbies| -> (unnumbered files here), \
+                    looks like |10-19 life admin| -> |11 me| -> (*numbered* files here)')
+                .addToggle(toggle => toggle
+                    .setValue(this.plugin.settings.flattenedStructure)
+                    .onChange(async (value) => {
+                        this.plugin.settings.flattenedStructure = value;
+                        await this.plugin.saveSettings();
 
-        this.flattenedOptionsEl.createDiv();
+                        this.display();
+                    }));
 
-        new Setting(this.flattenedOptionsEl)
-            .setName('Allow folders at first 10 prefixes')
-            .setDesc('Allow indexing folders with the first 10 prefixes in category folders e.g. |13.01 My secrets| \
-                where files are indexed starting from |13.11|. Provides additional depth if needed.')  //skip folder name in example
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.foldersInFirstTen)
-                .onChange(async (value) => {
-                    this.plugin.settings.foldersInFirstTen = value;
-                    await this.plugin.saveSettings();
-                }));
+            this.flattenedOptionsEl.createDiv();
+
+            if (this.plugin.settings.flattenedStructure) {
+                new Setting(this.flattenedOptionsEl)
+                    .setName('Allow folders at first 10 prefixes')
+                    .setDesc('Allow indexing folders with the first 10 prefixes in category folders e.g. |13.01 my secrets| \
+                        where files are indexed starting from |13.11|. Provides additional depth if needed.')
+                    .addToggle(toggle => toggle
+                        .setValue(this.plugin.settings.foldersInFirstTen)
+                        .onChange(async (value) => {
+                            this.plugin.settings.foldersInFirstTen = value;
+                            await this.plugin.saveSettings();
+                        }));
+            }
+        }
 
         containerEl.appendChild(this.divergeOptionsEl);
         this.divergeOptionsEl.appendChild(this.flattenedOptionsEl);

@@ -15,10 +15,6 @@ export const renameQueue: Map<string, Promise<void>> = new Map();
 // Tracks paths currently waiting to be processed (by stripped path).
 export const queuedForChange: Set<string> = new Set();
 
-// Optional debounce timer for rapid moves.
-// let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-// let pendingSubtrees: Map<string, { vault: any; fileManager: FileManager; file: TAbstractFile; settings: JohnnyDecimalPluginSettings }> = new Map();
-
 /**
  * Compute the new name for a file/folder based on its parent's JD prefix level.
  * Returns the plain name (prefix stripped) if no prefix should be applied.
@@ -68,7 +64,7 @@ function computeNewName(
     } else if (file instanceof TFolder) {
         if (!file.parent) return jdFile.filePlainName;
         
-        const parentLevel = jdFile.getParentJDprefixLevel();
+        const parentLevel = getJDprefixLevel(newParentName);
         
         // Scenario 3: Folder has prefix but was not moved - update inherited part only
         if (!fileWasMoved && jdFile.hasJDprefix) {
@@ -111,7 +107,7 @@ async function safeRename(
     let attempt = 0;
     let lastErr: Error | null = null;
 
-    while (attempt < maxRetries) {        
+    while (attempt < maxRetries) {
         // Wait a bit before retrying to allow filesystem to settle
         await new Promise((r) => setTimeout(r, attempt * 5));
 
