@@ -7,7 +7,7 @@ import { TAbstractFile, TFolder, TFile, Notice } from 'obsidian';
  * @returns true if JD prefix exists, false otherwise
  */
 export function hasJDprefix(fileName: string): boolean {
-    return (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) ? true : false; // /skip '-' is crucial part of the regex
+    return (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) ? true : false; //skip '-' is crucial part of the regex
 }
 
 /**
@@ -16,7 +16,7 @@ export function hasJDprefix(fileName: string): boolean {
  * @returns JD prefix if exists, empty string otherwise
  */
 export function getJDprefix(fileName: string): string {
-    if (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) { // /skip '-' is crucial part of the regex
+    if (fileName.match(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) /)) { //skip '-' is crucial part of the regex
         return fileName.substring(0, fileName.indexOf(' '));
     }
     return '';
@@ -51,7 +51,7 @@ export function stripJDIndexesFromPath(path: string): string {
 
     const parts = path.split('/');
     for (let i = 0; i < parts.length; i++) {
-        parts[i] = parts[i].replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2'); // /skip '-' is crucial part of the regex
+        parts[i] = parts[i].replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2'); //skip '-' is crucial part of the regex
     }
 
     return parts.join('/');
@@ -62,7 +62,7 @@ export function stripJDIndexesFromPath(path: string): string {
  * Returns: 0 for XX-YY prefix, 1 for XX prefix, 2 for XX.YY prefix, -1 for no prefix
  */
 export function getJDprefixLevel(name: string): number {
-    if (name.match(/^\d{2}\-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area") // /skip '-' is crucial part of the regex
+    if (name.match(/^\d{2}\-\d{2} /)) return 0;  // Top-level area (e.g., "00-09 Area") //skip '-' is crucial part of the regex
     if (name.match(/^\d{2} /)) return 1;         // Category (e.g., "01 Category")  
     if (name.match(/^\d{2}\.\d{2} /)) return 2;  // ID (e.g., "01.01 Item")
     return -1;  // No JD prefix
@@ -81,7 +81,7 @@ export class JDFileAttributes {
         this.file = file;
         this.oldName = oldPath.substring(oldPath.lastIndexOf("/") + 1)  // Old file name
 
-        this.hasJDprefix = (this.oldName.match(/^\d{2}\-\d{2} /) || // /skip '-' is crucial part of the regex
+        this.hasJDprefix = (this.oldName.match(/^\d{2}\-\d{2} /) || //skip '-' is crucial part of the regex
             this.oldName.match(/^\d{2}\.\d{2} /) ||
             this.oldName.match(/^\d{2} /)) ? true : false;
         this.fileJDprefix = this.hasJDprefix ? this.oldName.substring(0, this.oldName.indexOf(' ')) : "";
@@ -90,7 +90,7 @@ export class JDFileAttributes {
     }
 
     public parentHasTopLevelJDprefix():boolean {
-        return this.file.parent?.name.match(/^\d{2}\-\d{2} /) ? true : false; // /skip '-' is crucial part of the regex
+        return this.file.parent?.name.match(/^\d{2}\-\d{2} /) ? true : false; //skip '-' is crucial part of the regex
     }
 
     public parentHasJDprefix():boolean {
@@ -110,7 +110,7 @@ export class JDFileAttributes {
     }
 
     public getParentPlainName(): string {
-        return this.file.parent?.name.replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2') || ""; // /skip '-' is crucial part of the regex
+        return this.file.parent?.name.replace(/^((?:\d{2}\-\d{2})|(?:\d{2}\.\d{2})|(?:\d{2})) (.*)$/, '$2') || ""; //skip '-' is crucial part of the regex
     }
 }
 
@@ -121,7 +121,7 @@ export function isLevel0PrefixAvailable(file: TAbstractFile): boolean {
     const siblingPrefixes = siblings
         .filter(sibling => sibling.name !== file.name)
         .filter(sibling => sibling instanceof TFolder)
-        .map(sibling => sibling.name.match(/^\d{2}\-\d{2} /)) // /skip '-' is crucial part of the regex
+        .map(sibling => sibling.name.match(/^\d{2}\-\d{2} /)) //skip '-' is crucial part of the regex
         .filter(matched => matched !== null)
         .sort()
         .map(matched => matched[0].substring(0, matched[0].indexOf(' ')));
