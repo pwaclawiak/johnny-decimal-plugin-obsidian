@@ -7,7 +7,7 @@ import { TAbstractFile, TFolder, TFile, Notice } from 'obsidian';
  * @returns true if JD prefix exists, false otherwise
  */
 export function hasJDprefix(fileName: string): boolean {
-    return (fileName.match(/^(\d{2}[-.]\d{2}|\d{2})\ \w+/)) ? true : false;
+    return (fileName.match(/^(\d{2}[-.]\d{2}|\d{2}) \w+/)) ? true : false;
 }
 
 /**
@@ -16,7 +16,7 @@ export function hasJDprefix(fileName: string): boolean {
  * @returns JD prefix if exists, empty string otherwise
  */
 export function getJDprefix(fileName: string): string {
-    if (fileName.match(/^(\d{2}[-.]\d{2}|\d{2})\ \w+/)) {
+    if (fileName.match(/^(\d{2}[-.]\d{2}|\d{2}) \w+/)) {
         return fileName.substring(0, fileName.indexOf(' '));
     }
     return '';
@@ -51,7 +51,7 @@ export function stripJDIndexesFromPath(path: string): string {
 
     const parts = path.split('/');
     for (let i = 0; i < parts.length; i++) {
-        parts[i] = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2');
+        parts[i] = parts[i].replace(/^(\d{2}[-.]\d{2}|\d{2}) (.*)$/, '$2');
     }
     return parts.join('/');
 }
@@ -105,7 +105,7 @@ export class JDFileAttributes {
     }
 
     public getParentPlainName(): string {
-        return this.file.parent?.name.replace(/^(\d{2}[-.]\d{2}|\d{2})\ (.*)$/, '$2') || "";
+        return this.file.parent?.name.replace(/^(\d{2}[-.]\d{2}|\d{2}) (.*)$/, '$2') || "";
     }
 }
 
